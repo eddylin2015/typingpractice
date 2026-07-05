@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chinese Typing Practice</title>
+    <style>
+        :root {
+            --primary: #2b6cb0;
+            --background: #f7fafc;
+            --surface: #ffffff;
+            --text: #2d3748;
+            --muted: #718096;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans CJK SC", sans-serif;
+            background-color: var(--background);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background-color: var(--surface);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            width: 100%;
+            max-width: 700px;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-box {
+            background-color: var(--background);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .text-to-type {
+            font-size: 22px;
+            line-height: 1.6;
+            letter-spacing: 2px;
+            background-color: #edf2f7;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            user-select: none;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .typing-input {
+            width: 100%;
+            height: 120px;
+            box-sizing: border-box;
+            padding: 15px;
+            font-size: 20px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+            letter-spacing: 2px;
+        }
+
+        .typing-input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-reset {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: background-color 0.2s;
+        }
+
+        .btn-reset:hover {
+            background-color: #2b6cb0;
+            filter: brightness(0.9);
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>中文打字练习 (Chinese Typing Practice)</h1>
+
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-label">Time (时间)</div>
+            <div class="stat-value" id="timer">0s</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Characters (字数)</div>
+            <div class="stat-value" id="char-count">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Speed (速度)</div>
+            <div class="stat-value" id="cpm">0 CPM</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">Accuracy (正确率)</div>
+            <div class="stat-value" id="accuracy">100%</div>
+        </div>
+    </div>
+
+    <div class="text-to-type" id="target-text">今天天气真好，我们一起去公园散步吧。学习中文是一件很有趣的事情，只要每天坚持练习，你的汉语水平就会越来越好。</div>
+
+    <textarea class="typing-input" id="input-field" placeholder="请在这里开始打字..." autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+
+    <button class="btn-reset" id="reset-btn">更换文本 / 重新开始</button>
+</div>
+
+<script>
+    const sampleTexts = [
+        "今天天气真好，我们一起去公园散步吧。学习中文是一件很有趣的事情，只要每天坚持练习，你的汉语水平就会越来越好。",
+        "有志者，事竟成。只要目标明确并且付出努力，就一定能克服困难，实现自己的梦想。加油，你是最棒的！",
+        "时间就是金钱，效率就是生命。在现代社会中，如何合理安排和利用有限的时间，是每一个人都需要面对的重要课题。",
+        "中国是一个拥有五千年文明历史的古老国家。这里有雄伟的长城、美丽的桂林山水，还有种类繁多的传统美食，吸引着世界各地的游客。"
+    ];
+
+    const targetTextEl = document.getElementById('target-text');
+    const inputFieldEl = document.getElementById('input-field');
+    const timerEl = document.getElementById('timer');
+    const charCountEl = document.getElementById('char-count');
+    const cpmEl = document.getElementById('cpm');
+    const accuracyEl = document.getElementById('accuracy');
+    const resetBtn = document.getElementById('reset-btn');
+
+    let startTime = null;
+    let timerInterval = null;
+    let targetText = targetTextEl.innerText;
+    let isFinished = false;
+
+    // --- NEW: BLOCK PASTE ---
+    inputFieldEl.addEventListener('paste', (e) => {
+        e.preventDefault(); // This stops the pasting action
+        alert("为了保证练习效果，请不要粘贴文本！ (Pasting is disabled for practice.)");
+    });    
+
+    // Start timer on first keystroke
+    inputFieldEl.addEventListener('input', () => {
+        if (!startTime && inputFieldEl.value.length > 0) {
+            startTime = new Date();
+            timerInterval = setInterval(updateStats, 200);
+        }
+        updateStats();
+    });
+
+    function updateStats() {
+        if (isFinished) return;
+
+        const typedText = inputFieldEl.value;
+        const targetTextLength = targetText.length;
+        
+        // 1. Calculate characters typed (bounded by target text size)
+        const typedCount = typedText.length;
+        charCountEl.innerText = typedCount;
+
+        // 2. Calculate Time Spent
+        let timeSpentSeconds = 0;
+        if (startTime) {
+            timeSpentSeconds = Math.max(1, Math.floor((new Date() - startTime) / 1000));
+            timerEl.innerText = timeSpentSeconds + 's';
+        }
+
+        // 3. Calculate Speed (CPM - Characters Per Minute)
+        if (timeSpentSeconds > 0) {
+            const cpm = Math.round((typedCount / timeSpentSeconds) * 60);
+            cpmEl.innerText = cpm + ' CPM';
+        }
+
+        // 4. Calculate Accuracy
+        let correctCount = 0;
+        for (let i = 0; i < typedCount; i++) {
+            if (typedText[i] === targetText[i]) {
+                correctCount++;
+            }
+        }
+        
+        const accuracy = typedCount > 0 ? Math.round((correctCount / typedCount) * 100) : 100;
+        accuracyEl.innerText = accuracy + '%';
+
+        // Check if finished
+        if (typedCount >= targetTextLength) {
+            clearInterval(timerInterval);
+            isFinished = true;
+            inputFieldEl.disabled = true;
+            alert(`练习完成！\n总用时: ${timeSpentSeconds}秒\n打字速度: ${cpmEl.innerText}\n准确率: ${accuracy}%`);
+        }
+    }
+
+    // Reset function
+    resetBtn.addEventListener('click', () => {
+        clearInterval(timerInterval);
+        startTime = null;
+        isFinished = false;
+        
+        // Pick a random new text
+        const currentText = targetText;
+        let newText = currentText;
+        while (newText === currentText) {
+            newText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
+        }
+        targetText = newText;
+        targetTextEl.innerText = targetText;
+
+        // Reset display
+        inputFieldEl.value = '';
+        inputFieldEl.disabled = false;
+        timerEl.innerText = '0s';
+        charCountEl.innerText = '0';
+        cpmEl.innerText = '0 CPM';
+        accuracyEl.innerText = '100%';
+        inputFieldEl.focus();
+    });
+</script>
+
+</body>
+</html>
