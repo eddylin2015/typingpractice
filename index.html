@@ -7,6 +7,7 @@
     <style>
         :root {
             --primary: #2b6cb0;
+            --success: #2f855a;
             --background: #f7fafc;
             --surface: #ffffff;
             --text: #2d3748;
@@ -83,6 +84,8 @@
             user-select: none;
             white-space: pre-wrap;
             word-break: break-all;
+            max-height: 200px;
+            overflow-y: auto;
         }
 
         .typing-input {
@@ -104,24 +107,41 @@
             border-color: var(--primary);
         }
 
-        .btn-reset {
-            display: block;
-            width: 100%;
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
             padding: 12px;
-            background-color: var(--primary);
             color: white;
             border: none;
             border-radius: 8px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
-            transition: background-color 0.2s;
+            transition: background-color 0.2s, filter 0.2s;
+            text-align: center;
         }
 
-        .btn-reset:hover {
-            background-color: #2b6cb0;
+        .btn-reset {
+            background-color: var(--primary);
+        }
+
+        .btn-upload {
+            background-color: var(--success);
+            display: inline-block;
+        }
+
+        .btn:hover {
             filter: brightness(0.9);
+        }
+
+        /* Hide the ugly native file input */
+        #file-input {
+            display: none;
         }
     </style>
 </head>
@@ -153,7 +173,14 @@
 
     <textarea class="typing-input" id="input-field" placeholder="请在这里开始打字..." autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
 
-    <button class="btn-reset" id="reset-btn">更换文本 / 重新开始</button>
+    <div class="button-group">
+        <button class="btn btn-reset" id="reset-btn">更换系统文本 / 重置</button>
+        
+        <label class="btn btn-upload" for="file-input">
+            📁 上传文本文件 (.txt)
+        </label>
+        <input type="file" id="file-input" accept=".txt">
+    </div>
 </div>
 
 <script>
@@ -171,17 +198,18 @@
     const cpmEl = document.getElementById('cpm');
     const accuracyEl = document.getElementById('accuracy');
     const resetBtn = document.getElementById('reset-btn');
+    const fileInput = document.getElementById('file-input');
 
     let startTime = null;
     let timerInterval = null;
     let targetText = targetTextEl.innerText;
     let isFinished = false;
 
-    // --- NEW: BLOCK PASTE ---
+    // BLOCK PASTE
     inputFieldEl.addEventListener('paste', (e) => {
-        e.preventDefault(); // This stops the pasting action
-        alert("为了保证练习效果，请不要粘贴文本！ (Pasting is disabled for practice.)");
-    });    
+        e.preventDefault(); 
+        alert("为了保证练习效果，请不要粘贴文本！ (Pasting is disabled.)");
+    });
 
     // Start timer on first keystroke
     inputFieldEl.addEventListener('input', () => {
@@ -198,24 +226,20 @@
         const typedText = inputFieldEl.value;
         const targetTextLength = targetText.length;
         
-        // 1. Calculate characters typed (bounded by target text size)
         const typedCount = typedText.length;
         charCountEl.innerText = typedCount;
 
-        // 2. Calculate Time Spent
         let timeSpentSeconds = 0;
         if (startTime) {
             timeSpentSeconds = Math.max(1, Math.floor((new Date() - startTime) / 1000));
             timerEl.innerText = timeSpentSeconds + 's';
         }
 
-        // 3. Calculate Speed (CPM - Characters Per Minute)
         if (timeSpentSeconds > 0) {
             const cpm = Math.round((typedCount / timeSpentSeconds) * 60);
             cpmEl.innerText = cpm + ' CPM';
         }
 
-        // 4. Calculate Accuracy
         let correctCount = 0;
         for (let i = 0; i < typedCount; i++) {
             if (typedText[i] === targetText[i]) {
@@ -226,7 +250,6 @@
         const accuracy = typedCount > 0 ? Math.round((correctCount / typedCount) * 100) : 100;
         accuracyEl.innerText = accuracy + '%';
 
-        // Check if finished
         if (typedCount >= targetTextLength) {
             clearInterval(timerInterval);
             isFinished = true;
@@ -235,22 +258,11 @@
         }
     }
 
-    // Reset function
-    resetBtn.addEventListener('click', () => {
+    // Helper to completely reset state variables
+    function hardReset() {
         clearInterval(timerInterval);
         startTime = null;
         isFinished = false;
-        
-        // Pick a random new text
-        const currentText = targetText;
-        let newText = currentText;
-        while (newText === currentText) {
-            newText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
-        }
-        targetText = newText;
-        targetTextEl.innerText = targetText;
-
-        // Reset display
         inputFieldEl.value = '';
         inputFieldEl.disabled = false;
         timerEl.innerText = '0s';
@@ -258,6 +270,45 @@
         cpmEl.innerText = '0 CPM';
         accuracyEl.innerText = '100%';
         inputFieldEl.focus();
+    }
+
+    // Reset button (cycles sample texts)
+    resetBtn.addEventListener('click', () => {
+        hardReset();
+        const currentText = targetText;
+        let newText = currentText;
+        while (newText === currentText) {
+            newText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
+        }
+        targetText = newText;
+        targetTextEl.innerText = targetText;
+    });
+
+    // --- NEW: HANDLE FILE UPLOAD ---
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const fileContent = evt.target.result.trim();
+            if (fileContent.length === 0) {
+                alert("所选文件是空的！ (The file is empty!)");
+                return;
+            }
+            
+            // Set the uploaded text as target
+            targetText = fileContent;
+            targetTextEl.innerText = targetText;
+            
+            // Clear inputs and start fresh
+            hardReset();
+            
+            // Clear input choice value so the same file can be uploaded again if needed
+            fileInput.value = '';
+        };
+        
+        reader.readAsText(file, 'UTF-8');
     });
 </script>
 
